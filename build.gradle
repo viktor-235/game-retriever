@@ -1,0 +1,94 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '2.7.14'
+	id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+	id "org.liquibase.gradle" version "2.2.0"
+	id 'com.palantir.git-version' version '0.15.0'
+	id "org.jsonschema2pojo" version "1.2.1"
+}
+
+group = 'com.github.viktor235'
+version = gitVersion()
+sourceCompatibility = '17'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+springBoot {
+	buildInfo()
+}
+
+bootJar {
+	archiveBaseName = rootProject.name
+	manifest {
+		attributes('Implementation-Title': rootProject.name,
+				'Implementation-Version': rootProject.version)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springShellVersion', "2.1.12")
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.liquibase:liquibase-core'
+	implementation 'org.springframework.boot:spring-boot-starter-json'
+	implementation 'org.springframework.shell:spring-shell-starter'
+	implementation 'io.github.husnjak:igdb-api-jvm:1.0.11'
+	compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'com.h2database:h2'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	liquibaseRuntime 'org.liquibase:liquibase-core:4.17.1'
+	liquibaseRuntime 'info.picocli:picocli:4.6.1'
+	liquibaseRuntime 'com.h2database:h2' // Check it. Maybe wrong driver/connector
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.shell:spring-shell-dependencies:${springShellVersion}"
+	}
+}
+
+tasks.register('releaseZip', Zip) {
+	dependsOn bootJar
+	from('build/libs') {
+		include '*.jar'
+	}
+	from projectDir
+	include "schemas/"
+	include "converters/"
+}
+
+liquibase {
+	activities {
+		main {
+			driver 'org.h2.Driver'
+			url 'jdbc:h2:file:./db/rgg'
+			username 'sa'
+			schemas 'GAME_RETRIEVER'
+//			changeLogFile 'src/main/resources/db/changelog/changelog-master.h2.sql'
+			changeLogFile 'src/main/resources/db/changelog/changelog-master.xml'
+			dataOutputDirectory 'src/main/resources/db/changelog'
+		}
+	}
+}
+
+jsonSchema2Pojo {
+	source = files("${project.projectDir}/schemas")
+	targetPackage = 'com.github.viktor235.gameretriever.model.converter'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

@@ -1,0 +1,72 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+    <changeSet author="victor" id="1685032393232-0">
+        <sql dbms="h2">
+            CREATE SCHEMA IF NOT EXISTS GAME_RETRIEVER;
+        </sql>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-1">
+        <createTable tableName="GAME" schemaName="GAME_RETRIEVER">
+            <column name="ID" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="CONSTRAINT_2"/>
+            </column>
+            <column name="INFO_LINK" type="VARCHAR(255)"/>
+            <column name="NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-2">
+        <createTable tableName="GAME_PLATFORM" schemaName="GAME_RETRIEVER">
+            <column autoIncrement="true" name="ID" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="CONSTRAINT_5"/>
+            </column>
+            <column name="GAME_ID" type="BIGINT"/>
+            <column name="PLATFORM_ID" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-3">
+        <createTable tableName="PLATFORM" schemaName="GAME_RETRIEVER">
+            <column name="ID" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="CONSTRAINT_9"/>
+            </column>
+            <column name="ACTIVE" type="BOOLEAN"/>
+            <column name="NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SHORT_NAME" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-4">
+        <createIndex indexName="FK41JGUM716EBUFUJJ784QYOP5R_INDEX_5" tableName="GAME_PLATFORM"
+                     schemaName="GAME_RETRIEVER">
+            <column name="GAME_ID"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-5">
+        <createIndex indexName="FK8AC70J8DIC3PO6VPMYTX17BJL_INDEX_5" tableName="GAME_PLATFORM"
+                     schemaName="GAME_RETRIEVER">
+            <column name="PLATFORM_ID"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-6">
+        <addForeignKeyConstraint baseColumnNames="GAME_ID" baseTableName="GAME_PLATFORM"
+                                 baseTableSchemaName="GAME_RETRIEVER"
+                                 constraintName="FK41JGUM716EBUFUJJ784QYOP5R" deferrable="false"
+                                 initiallyDeferred="false" onDelete="RESTRICT" onUpdate="RESTRICT"
+                                 referencedColumnNames="ID" referencedTableName="GAME"
+                                 referencedTableSchemaName="GAME_RETRIEVER" validate="true"/>
+    </changeSet>
+    <changeSet author="victor" id="1685032393232-7">
+        <addForeignKeyConstraint baseColumnNames="PLATFORM_ID" baseTableName="GAME_PLATFORM"
+                                 baseTableSchemaName="GAME_RETRIEVER"
+                                 constraintName="FK8AC70J8DIC3PO6VPMYTX17BJL" deferrable="false"
+                                 initiallyDeferred="false" onDelete="RESTRICT" onUpdate="RESTRICT"
+                                 referencedColumnNames="ID" referencedTableName="PLATFORM"
+                                 referencedTableSchemaName="GAME_RETRIEVER" validate="true"/>
+    </changeSet>
+</databaseChangeLog>
