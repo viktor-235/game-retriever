@@ -1,0 +1,6 @@
+
+    ,----.
+   /( ) ^ \-o
+-/    .____/
+     /       ${application.title}
+     \       ${application.version}

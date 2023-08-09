@@ -1,0 +1,62 @@
+name: Build and attach an artifact to a release
+
+on:
+  push:
+    #branches:
+    #  - main
+    tags:
+      - v*
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Debug
+      - name: Dump env
+        run: env | sort
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Debug
+      - run: git version
+      - run: git branch
+      - run: git tag
+
+      # Java environment
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: adopt
+          cache: gradle
+
+      # Debug dirty git state and prevent bug: https://github.com/palantir/gradle-git-version/issues/28
+      - run: git status
+
+      # Build
+      - name: Gradle Wrapper Validation
+        uses: gradle/wrapper-validation-action@v1
+      - name: Gradle Build Action
+        uses: gradle/gradle-build-action@v2.7.0
+        with:
+          arguments: releaseZip
+
+      # Debug
+      - run: ls build/libs
+      - run: ls build/distributions
+
+      # Release
+      - name: Release
+        uses: softprops/action-gh-release@v0.1.15
+        with:
+          files: build/distributions/${{ github.event.repository.name }}-${{ github.ref_name }}.zip
