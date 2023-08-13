@@ -2,6 +2,7 @@ package com.github.viktor235.gameretriever.command;
 
 import com.github.viktor235.gameretriever.exception.AppException;
 import com.github.viktor235.gameretriever.exception.AuthException;
+import com.github.viktor235.gameretriever.helper.Spinner;
 import com.github.viktor235.gameretriever.model.converter.Converter;
 import com.github.viktor235.gameretriever.model.entity.Platform;
 import com.github.viktor235.gameretriever.service.AuthService;
@@ -9,7 +10,6 @@ import com.github.viktor235.gameretriever.service.ConverterService;
 import com.github.viktor235.gameretriever.service.GameGrabberService;
 import com.github.viktor235.gameretriever.service.LiquibaseService;
 import com.github.viktor235.gameretriever.shell.ShellHelper;
-import com.github.viktor235.gameretriever.shell.ShellSpinner;
 import liquibase.repackaged.org.apache.commons.lang3.BooleanUtils;
 import lombok.RequiredArgsConstructor;
 import org.jline.utils.AttributedStyle;
@@ -33,7 +33,6 @@ public class GameRetrieverCommands {
     private final LiquibaseService liquibaseService;
     private final ConverterService converterService;
     private final ShellHelper shellHelper;
-    private final ShellSpinner spinner;
 
     @ShellMethod(key = "auth", value = "Log into Twitch developers to access igdb.com API. Credentials saves into 'auth.json'. Details: https://api-docs.igdb.com/#account-creation")
     public void auth(
@@ -62,15 +61,12 @@ public class GameRetrieverCommands {
             return;
         }
 
-        try {
-            spinner.start("Logging into Twitch developers");
+        try (Spinner spinner = shellHelper.spinner("Logging into Twitch developers")) {
             authService.auth(clientId, clientSecret);
-            spinner.stop(shellHelper.getSuccess("Successfully authorized"));
+            spinner.success("Successfully authorized");
         } catch (AuthException e) {
-            spinner.stop(shellHelper.getError(e.getMessage()));
+            shellHelper.printError(e.getMessage());
             auth(null, null, false);
-        } finally {
-            spinner.stopIfSpinning();
         }
     }
 
@@ -83,18 +79,16 @@ public class GameRetrieverCommands {
             return;
         }
 
-        try {
-            spinner.start("Updating the platforms");
+        try (Spinner spinner = shellHelper.spinner("Updating the platforms")) {
             gameGrabberService.grabPlatforms();
-            spinner.stop(shellHelper.getSuccess("Platforms updated")); //FIXME repeats because of recursion
+            spinner.success("Platforms updated");
         } catch (AuthException e) {
-            spinner.stop(shellHelper.getWarning("Unauthorized. Logging in:"));
+            shellHelper.printWarning("Unauthorized. Logging in:");
             auth(null, null, false);
             grabPlatforms();
-        } finally {
-            spinner.stopIfSpinning();
-            shellHelper.println();
+            return;
         }
+        shellHelper.println();
     }
 
     @ShellMethod(key = "platforms ls", value = "Show platform list")
@@ -131,25 +125,17 @@ public class GameRetrieverCommands {
     @ShellMethod(key = "platforms manage", value = "Manage active platforms")
     public void managePlatforms() throws AppException {
         List<Platform> platforms;
-        try {
-            spinner.start("Preparing platform list");
+        try (Spinner spinner = shellHelper.spinner("Preparing platform list")) {
             platforms = gameGrabberService.getPlatforms(false);
-            spinner.stop();
-        } finally {
-            spinner.stopIfSpinning();
         }
 
         List<Platform> chosenPlatforms = shellHelper.chooseMany("Select platforms to use", platforms, Platform::getName, Platform::getActive);
 
-        try {
-            spinner.start("Saving the selection");
+        try (Spinner spinner = shellHelper.spinner("Saving the selection")) {
             gameGrabberService.setActivePlatforms(chosenPlatforms.stream()
                     .map(Platform::getId)
                     .collect(Collectors.toSet())
             );
-            spinner.stop();
-        } finally {
-            spinner.stopIfSpinning();
         }
 
         String activePlatforms = gameGrabberService.getPlatforms(true).stream()
@@ -168,34 +154,29 @@ public class GameRetrieverCommands {
             return;
         }
 
-        try {
-            spinner.start("Updating the games");
+        try (Spinner spinner = shellHelper.spinner("Updating the games")) {
             gameGrabberService.grabGames(spinner::setMessage);
             String activePlatforms = gameGrabberService.getPlatforms(true).stream()
                     .map(Platform::getShortName)
                     .collect(Collectors.joining(", "));
-            spinner.stop(shellHelper.getSuccess("Games updated for platforms: " + activePlatforms)); //FIXME repeats because of recursion
+            spinner.success("Games updated for platforms: " + activePlatforms);
         } catch (AuthException e) {
-            spinner.stop(shellHelper.getWarning("Unauthorized. Logging in:"));
+            shellHelper.printWarning("Unauthorized. Logging in:");
             auth(null, null, false);
             grabGames();
-        } finally {
-            spinner.stopIfSpinning();
-            shellHelper.println();
+            return;
         }
+        shellHelper.println();
     }
 
     @ShellMethod(key = "output changelog", value = "Store all platforms and games as SQL insert file")
     public void generateChangelog() throws AppException {
-        try {
-            String changelogFile = liquibaseService.getChangelogFile();
-            spinner.start("Generating changelog file: " + changelogFile);
+        String changelogFile = liquibaseService.getChangelogFile();
+        try (Spinner spinner = shellHelper.spinner("Generating changelog file: " + changelogFile)) {
             liquibaseService.generateDataChangelog();
-            spinner.stop(shellHelper.getSuccess("DB changelog generated: " + changelogFile));
-        } finally {
-            spinner.stopIfSpinning();
-            shellHelper.println();
+            spinner.success("DB changelog generated: " + changelogFile);
         }
+        shellHelper.println();
     }
 
     @ShellMethod(key = "output convert", value = "Convert changelog SQL file into result file. Converters located in 'converters/'")
@@ -209,15 +190,12 @@ public class GameRetrieverCommands {
         String converterName = shellHelper.chooseOne("Select SQL converter (located in 'converters/')", converters.keySet());
         Converter converterCfg = converters.get(converterName);
 
-        try {
-            spinner.start("Converting changelog file '%s' to the result file '%s'"
-                    .formatted(converterCfg.getInputFile(), converterCfg.getOutputFile()));
+        try (Spinner spinner = shellHelper.spinner("Converting: '%s' -> '%s'"
+                .formatted(converterCfg.getInputFile(), converterCfg.getOutputFile()))) {
             converterService.convert(converterName, spinner::setMessage);
-            spinner.stop(shellHelper.getSuccess("Changelog converted. Result file: " + converterCfg.getOutputFile()));
-        } finally {
-            spinner.stopIfSpinning();
-            shellHelper.println();
+            spinner.success("Changelog converted. Result file: " + converterCfg.getOutputFile());
         }
+        shellHelper.println();
     }
 
     @ShellMethod(key = "wizard", value = "Start interactive wizard. This is the easiest way to interact with the application")

@@ -1,5 +1,6 @@
 package com.github.viktor235.gameretriever.shell;
 
+import com.github.viktor235.gameretriever.helper.Spinner;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jline.terminal.Terminal;
@@ -214,5 +215,15 @@ public class ShellHelper {
                 .and().build().run();
 
         return confirmed.get();
+    }
+
+    /* Spinner */
+
+    public Spinner spinner(String message) {
+        return Spinner.start(this, message);
+    }
+
+    public Spinner spinner() {
+        return Spinner.start(this);
     }
 }
