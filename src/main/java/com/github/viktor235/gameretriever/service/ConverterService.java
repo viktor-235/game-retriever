@@ -43,16 +43,8 @@ public class ConverterService {
 
     private void readConverterFiles() throws AppException {
         converters = new LinkedHashMap<>();
-        File folder = new File(CONVERTER_DIR);
-        if (!folder.exists()) {
-            folder.mkdir();
-        }
-        if (!folder.exists() || !folder.isDirectory()) {
-            throw new AppException("Converter folder '%s' not found".formatted(CONVERTER_DIR));
-        }
-
         try {
-            for (final File fileEntry : folder.listFiles()) {
+            for (final File fileEntry : getFilesByExtension(CONVERTER_DIR, "json")) {
                 if (!fileEntry.isDirectory()) {
                     Converter converter = objectMapper.readValue(fileEntry, Converter.class);
                     converters.put(removeExtension(fileEntry.getName()), converter);
@@ -61,6 +53,19 @@ public class ConverterService {
         } catch (IOException e) {
             throw new AppException("Error while reading converter files: " + e.getMessage(), e);
         }
+    }
+
+    private File[] getFilesByExtension(String folderPath, String extension) {
+        File folder = new File(folderPath);
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+        if (!folder.exists() || !folder.isDirectory()) {
+            throw new AppException("Converter folder '%s' not found".formatted(CONVERTER_DIR));
+        }
+        return folder.listFiles((dir, name) ->
+                name.toLowerCase().endsWith("." + extension)
+        );
     }
 
     private String removeExtension(String fileName) {
