@@ -2,7 +2,6 @@ package com.github.viktor235.gameretriever.command;
 
 import com.github.viktor235.gameretriever.exception.AppException;
 import com.github.viktor235.gameretriever.exception.AuthException;
-import com.github.viktor235.gameretriever.helper.Spinner;
 import com.github.viktor235.gameretriever.model.converter.Converter;
 import com.github.viktor235.gameretriever.model.entity.Platform;
 import com.github.viktor235.gameretriever.service.AuthService;
@@ -10,6 +9,7 @@ import com.github.viktor235.gameretriever.service.ConverterService;
 import com.github.viktor235.gameretriever.service.GameGrabberService;
 import com.github.viktor235.gameretriever.service.LiquibaseService;
 import com.github.viktor235.gameretriever.shell.ShellHelper;
+import com.github.viktor235.gameretriever.shell.Spinner;
 import liquibase.repackaged.org.apache.commons.lang3.BooleanUtils;
 import lombok.RequiredArgsConstructor;
 import org.jline.utils.AttributedStyle;
@@ -138,10 +138,12 @@ public class GameRetrieverCommands {
             );
         }
 
-        String activePlatforms = gameGrabberService.getPlatforms(true).stream()
-                .map(Platform::getShortName)
-                .collect(Collectors.joining(", "));
-        shellHelper.printSuccess("Selected platforms saved: " + activePlatforms);
+        String activePlatforms = gameGrabberService.getPlatformsAsString(true);
+        if (isNotEmpty(activePlatforms)) {
+            shellHelper.printSuccess("Selected platforms saved: " + activePlatforms);
+        } else {
+            shellHelper.printWarning("Active platform collection is empty");
+        }
         shellHelper.println();
     }
 
@@ -156,15 +158,18 @@ public class GameRetrieverCommands {
 
         try (Spinner spinner = shellHelper.spinner("Updating the games")) {
             gameGrabberService.grabGames(spinner::setMessage);
-            String activePlatforms = gameGrabberService.getPlatforms(true).stream()
-                    .map(Platform::getShortName)
-                    .collect(Collectors.joining(", "));
-            spinner.success("Games updated for platforms: " + activePlatforms);
         } catch (AuthException e) {
             shellHelper.printWarning("Unauthorized. Logging in:");
             auth(null, null, false);
             grabGames();
             return;
+        }
+
+        String activePlatforms = gameGrabberService.getPlatformsAsString(true);
+        if (isNotEmpty(activePlatforms)) {
+            shellHelper.printSuccess("Games updated for platforms: " + activePlatforms);
+        } else {
+            shellHelper.printWarning("No games updated because active platform collection is empty");
         }
         shellHelper.println();
     }

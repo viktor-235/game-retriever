@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
+import static liquibase.repackaged.org.apache.commons.collections4.CollectionUtils.isEmpty;
 
 @Service
 @RequiredArgsConstructor
@@ -50,6 +52,17 @@ public class GameGrabberService {
         return activeOnly ?
                 platformRepository.findByActiveTrue() :
                 platformRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public String getPlatformsAsString(boolean activeOnly) {
+        List<Platform> platforms = getPlatforms(activeOnly);
+        if (isEmpty(platforms)) {
+            return null;
+        }
+        return platforms.stream()
+                .map(Platform::getShortName)
+                .collect(Collectors.joining(", "));
     }
 
     @Transactional

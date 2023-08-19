@@ -1,6 +1,6 @@
-package com.github.viktor235.gameretriever.helper;
+package com.github.viktor235.gameretriever.shell;
 
-import com.github.viktor235.gameretriever.shell.ShellHelper;
+import com.github.viktor235.gameretriever.helper.BackgroundWorker;
 import org.jline.terminal.Terminal;
 
 public class Spinner implements AutoCloseable {

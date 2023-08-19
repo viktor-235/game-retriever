@@ -68,6 +68,7 @@ tasks.register('releaseZip', Zip) {
 	from projectDir
 	include "schemas/"
 	include "converters/"
+	include "README.md"
 }
 
 liquibase {
@@ -87,6 +88,7 @@ liquibase {
 jsonSchema2Pojo {
 	source = files("${project.projectDir}/schemas")
 	targetPackage = 'com.github.viktor235.gameretriever.model.converter'
+	fileExtensions = [".schema.json"]
 }
 
 tasks.named('test') {
