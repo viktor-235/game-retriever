@@ -1,6 +1,5 @@
 package com.github.viktor235.gameretriever.shell;
 
-import com.github.viktor235.gameretriever.helper.Spinner;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jline.terminal.Terminal;
