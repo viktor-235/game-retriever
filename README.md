@@ -34,30 +34,6 @@ Game Retriever Commands
 ```
 
 ## Converters
-The converters are JSON files located in the [converters/](https://github.com/viktor-235/game-retriever/tree/main/converters) folder. You can find the JSON schema and description in the file [schemas/converter.json](https://github.com/viktor-235/game-retriever/blob/main/schemas/converter.json).
-
-### Converter example
-```
-{
-  "$schema": "../schemas/converter.json",
-  "inputFile": "data/changelog.h2.sql",
-  "outputFile": "data/rgg-assistant.h2.sql",
-  "handlers": [
-    {
-      "name": "platform",
-      "pattern": "INSERT INTO PLATFORM \\(ID, ACTIVE, NAME, SHORT_NAME\\) VALUES \\((?<id>\\d+), TRUE, (?<name>'.*?'), (?<shortName>'.*?')\\);",
-      "substitution": "MERGE INTO PLATFORM (SOURCE_TYPE, SOURCE_ID, NAME, SHORT_NAME) KEY (SOURCE_TYPE, SOURCE_ID) VALUES ('IGDB', ${id}, ${name}, ${shortName});"
-    },
-    {
-      "name": "game",
-      "pattern": "INSERT INTO GAME \\(ID, INFO_LINK, NAME\\) VALUES \\((?<id>\\d+), (?<infoLink>'.*?'), (?<name>'.*?')\\);",
-      "substitution": "MERGE INTO GAME (SOURCE_TYPE, SOURCE_ID, INFO_LINK, NAME) KEY (SOURCE_TYPE, SOURCE_ID) VALUES ('IGDB', '${id}', ${infoLink}, ${name});"
-    },
-    {
-      "name": "game_platform",
-      "pattern": "INSERT INTO GAME_PLATFORM \\(ID, GAME_ID, PLATFORM_ID\\) VALUES \\(\\d+, (?<gameId>.*?), (?<platformId>.*?)\\);",
-      "substitution": "MERGE INTO GAME_PLATFORM (SOURCE_TYPE, GAME_ID, PLATFORM_ID) KEY (GAME_ID, PLATFORM_ID) VALUES ('IGDB', (SELECT ID FROM game WHERE SOURCE_TYPE='IGDB' AND SOURCE_ID='${gameId}'), (SELECT ID FROM platform WHERE SOURCE_TYPE='IGDB' AND SOURCE_ID='${platformId}'));"
-    }
-  ]
-}
-```
+The converters are JSON files located in the [converters/](converters/) folder.
+- [Converter docs](converters/README.md)
+- [JSON schema](schemas/converter.schema.json)

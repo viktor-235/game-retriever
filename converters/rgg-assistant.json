@@ -1,5 +1,5 @@
 {
-  "$schema": "../schemas/converter.json",
+  "$schema": "../schemas/converter.schema.json",
   "inputFile": "data/changelog.h2.sql",
   "outputFile": "data/rgg-assistant.h2.sql",
   "handlers": [
