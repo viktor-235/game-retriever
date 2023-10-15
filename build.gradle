@@ -43,6 +43,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-json'
 	implementation 'org.springframework.shell:spring-shell-starter'
 	implementation 'io.github.husnjak:igdb-api-jvm:1.0.11'
+	implementation 'com.github.spullara.mustache.java:compiler:0.9.10'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'
 	annotationProcessor 'org.projectlombok:lombok'
