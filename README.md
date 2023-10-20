@@ -9,9 +9,11 @@ Game Retriever has a [configurable converter mechanism](#converters) that lets y
 Application was originally created as a helper for [RGG Assistant](https://github.com/viktor-235/rgg-assistant) to populate its database with platforms and games, but it was later enhanced with the converter feature to make it more versatile and useful to someone else.
 
 ## Demo
+
 [![asciicast](https://asciinema.org/a/JnASQpxcqJrj4IEBuoniKAfB4.svg)](https://asciinema.org/a/JnASQpxcqJrj4IEBuoniKAfB4)
 
 ## Commands
+
 ```
 Built-In Commands
        help: Display help about available commands
@@ -26,9 +28,8 @@ Game Retriever Commands
        wizard: Start interactive wizard. This is the easiest way to interact with the application
        auth: Log into Twitch developers to access igdb.com API. Credentials saves into 'auth.json'. Details: https://api-docs.igdb.com/#account-creation
        platforms update: Grab platforms data from IGDB into local
-       platforms manage: Manage active platforms
        platforms ls: Show platform list
-       games update: Grab games from activated platforms info into local DB. See 'platform manage'
+       games update: Grab games from selected platforms into local DB
        output changelog: Store all platforms and games as SQL insert file
        output convert: Convert changelog SQL file into result file. Converters located in 'converters/'
 ```
