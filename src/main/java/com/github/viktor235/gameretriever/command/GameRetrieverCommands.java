@@ -11,6 +11,7 @@ import com.github.viktor235.gameretriever.service.LiquibaseService;
 import com.github.viktor235.gameretriever.shell.ShellHelper;
 import com.github.viktor235.gameretriever.shell.Spinner;
 import liquibase.repackaged.org.apache.commons.lang3.BooleanUtils;
+import liquibase.repackaged.org.apache.commons.lang3.StringUtils;
 import lombok.RequiredArgsConstructor;
 import org.jline.utils.AttributedStyle;
 import org.springframework.shell.standard.ShellComponent;
@@ -122,14 +123,14 @@ public class GameRetrieverCommands {
         shellHelper.println(sb.toString());
     }
 
-    @ShellMethod(key = "platforms manage", value = "Manage active platforms")
-    public void managePlatforms() throws AppException {
+    @ShellMethod(key = "games update", value = "Grab games from selected platforms into local DB")
+    public void grabGames() throws AppException {
         List<Platform> platforms;
         try (Spinner spinner = shellHelper.spinner("Preparing platform list")) {
             platforms = gameGrabberService.getPlatforms(false);
         }
 
-        List<Platform> chosenPlatforms = shellHelper.chooseMany("Select platforms to use", platforms, Platform::getName, Platform::getActive);
+        List<Platform> chosenPlatforms = shellHelper.chooseMany("Select platforms to update games", platforms, Platform::getName, Platform::getActive);
 
         try (Spinner spinner = shellHelper.spinner("Saving the selection")) {
             gameGrabberService.setActivePlatforms(chosenPlatforms.stream()
@@ -139,19 +140,8 @@ public class GameRetrieverCommands {
         }
 
         String activePlatforms = gameGrabberService.getPlatformsAsString(true);
-        if (isNotEmpty(activePlatforms)) {
-            shellHelper.printSuccess("Selected platforms saved: " + activePlatforms);
-        } else {
-            shellHelper.printWarning("Active platform collection is empty");
-        }
-        shellHelper.println();
-    }
-
-    @ShellMethod(key = "games update", value = "Grab games from activated platforms info into local DB. See 'platform manage'")
-    public void grabGames() throws AppException {
-        Boolean confirm = shellHelper.confirm("Update games from IGDB?");
-        if (BooleanUtils.isNotTrue(confirm)) {
-            shellHelper.printInfo("Game updating skipped");
+        if (StringUtils.isEmpty(activePlatforms)) {
+            shellHelper.printWarning("No platforms selected. Skipped");
             shellHelper.println();
             return;
         }
@@ -165,12 +155,7 @@ public class GameRetrieverCommands {
             return;
         }
 
-        String activePlatforms = gameGrabberService.getPlatformsAsString(true);
-        if (isNotEmpty(activePlatforms)) {
-            shellHelper.printSuccess("Games updated for platforms: " + activePlatforms);
-        } else {
-            shellHelper.printWarning("No games updated because active platform collection is empty");
-        }
+        shellHelper.printSuccess("Games updated for platforms: " + activePlatforms);
         shellHelper.println();
     }
 
@@ -206,7 +191,6 @@ public class GameRetrieverCommands {
     @ShellMethod(key = "wizard", value = "Start interactive wizard. This is the easiest way to interact with the application")
     public void wizard() throws AppException {
         grabPlatforms();
-        managePlatforms();
         grabGames();
         generateChangelog();
         convertSql();
