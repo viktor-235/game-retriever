@@ -1,6 +1,7 @@
 package com.github.viktor235.gameretriever.service;
 
 import com.github.viktor235.gameretriever.exception.AppException;
+import com.github.viktor235.gameretriever.model.PlatformStats;
 import com.github.viktor235.gameretriever.model.entity.Game;
 import com.github.viktor235.gameretriever.model.entity.GamePlatform;
 import com.github.viktor235.gameretriever.model.entity.Platform;
@@ -17,8 +18,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import static liquibase.repackaged.org.apache.commons.collections4.CollectionUtils.isEmpty;
 
 @Service
 @RequiredArgsConstructor
@@ -49,32 +48,9 @@ public class GameGrabberService {
 
     @Transactional(readOnly = true)
     public List<Platform> getPlatforms(boolean activeOnly) {
-        return activeOnly ?
-                platformRepository.findByActiveTrue() :
-                platformRepository.findAll();
-    }
-
-    @Transactional(readOnly = true)
-    public String getPlatformsAsString(boolean activeOnly) {
-        List<Platform> platforms = getPlatforms(activeOnly);
-        if (isEmpty(platforms)) {
-            return null;
-        }
-        return platforms.stream()
-                .map(Platform::getShortName)
-                .collect(Collectors.joining(", "));
-    }
-
-    @Transactional
-    public void setPlatformsStatus(long[] platformIds, boolean newActiveStatus) throws AppException {
-        for (long id : platformIds) {
-            Platform dbPlatform = platformRepository.findById(id)
-                    .orElseThrow(() -> new AppException("Platform with id '%d' not found".formatted(id)));
-
-            dbPlatform.setActive(newActiveStatus);
-            platformRepository.save(dbPlatform);
-            System.out.printf("'%s' activation status is '%s'%n", dbPlatform.getName(), newActiveStatus);
-        }
+        return activeOnly
+                ? platformRepository.findByActiveTrue()
+                : platformRepository.findAll();
     }
 
     @Transactional
@@ -102,23 +78,35 @@ public class GameGrabberService {
             AtomicInteger handled = new AtomicInteger();
             int finalPlatformIndex = platformIndex;
             igdbService.getGames(dbPlatform.getId(), (buffer) -> {
-                for (proto.Game apiGame : buffer) {
-                    Game dbGame = Game.builder()
-                            .id(apiGame.getId())
-                            .name(apiGame.getName())
-                            .infoLink(apiGame.getUrl()).build();
-                    gameRepository.save(dbGame);
-
-                    gamePlatformRepository.save(GamePlatform.builder()
-                            .game(dbGame)
-                            .platform(dbPlatform).build()
-                    );
-                }
-
+                buffer.stream()
+                        .map(apiGame -> Game.builder()
+                                .id(apiGame.getId())
+                                .name(apiGame.getName())
+                                .infoLink(apiGame.getUrl()).build())
+                        .forEach(dbGame -> {
+                            gameRepository.save(dbGame);
+                            gamePlatformRepository.save(GamePlatform.builder()
+                                    .game(dbGame)
+                                    .platform(dbPlatform).build());
+                        });
                 progressCallback.accept("(platform %d/%d) %s: handled %d games".formatted(finalPlatformIndex,
                         activePlatforms.size(), dbPlatform.getName(), handled.addAndGet(buffer.size())));
             });
         }
+    }
+
+    @Transactional
+    public PlatformStats getStats() {
+        return PlatformStats.builder()
+                .activePlatformCount(platformRepository.countByActiveTrue())
+                .gameCount(gameRepository.count())
+                .gamePlatformCount(gamePlatformRepository.count())
+                .platformStats(platformRepository.findByActiveTrue().stream()
+                        .map(p -> new PlatformStats.Platform(
+                                p.getName(),
+                                p.getGamePlatforms().size()))
+                        .collect(Collectors.toList()))
+                .build();
     }
 
     @Deprecated

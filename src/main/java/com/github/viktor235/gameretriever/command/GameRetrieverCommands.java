@@ -8,12 +8,11 @@ import com.github.viktor235.gameretriever.service.AuthService;
 import com.github.viktor235.gameretriever.service.ConverterService;
 import com.github.viktor235.gameretriever.service.GameGrabberService;
 import com.github.viktor235.gameretriever.service.LiquibaseService;
+import com.github.viktor235.gameretriever.service.helper.FormatHelper;
 import com.github.viktor235.gameretriever.shell.ShellHelper;
 import com.github.viktor235.gameretriever.shell.Spinner;
 import liquibase.repackaged.org.apache.commons.lang3.BooleanUtils;
-import liquibase.repackaged.org.apache.commons.lang3.StringUtils;
 import lombok.RequiredArgsConstructor;
-import org.jline.utils.AttributedStyle;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -23,7 +22,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static liquibase.repackaged.org.apache.commons.collections4.MapUtils.isEmpty;
-import static liquibase.repackaged.org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 @ShellComponent
 @RequiredArgsConstructor
@@ -34,6 +32,7 @@ public class GameRetrieverCommands {
     private final LiquibaseService liquibaseService;
     private final ConverterService converterService;
     private final ShellHelper shellHelper;
+    private final FormatHelper formatHelper;
 
     @ShellMethod(key = "auth", value = "Log into Twitch developers to access igdb.com API. Credentials saves into 'auth.json'. Details: https://api-docs.igdb.com/#account-creation")
     public void auth(
@@ -50,13 +49,8 @@ public class GameRetrieverCommands {
             return;
         }
 
-        if (clientId == null) {
-            clientId = shellHelper.prompt("Enter client-id:");
-        }
-        if (clientSecret == null) {
-            clientSecret = shellHelper.promptPassword("Enter client-secret:");
-        }
-
+        clientId = shellHelper.promptIfEmpty(clientId, "Enter client-id:");
+        clientSecret = shellHelper.promptPasswordIfEmpty(clientId, "Enter client-secret:");
         if (clientId == null || clientSecret == null) {
             shellHelper.printWarning("Empty input. Authorizing canceled");
             return;
@@ -75,8 +69,7 @@ public class GameRetrieverCommands {
     public void grabPlatforms() throws AppException {
         Boolean confirm = shellHelper.confirm("Update platforms from IGDB?");
         if (BooleanUtils.isNotTrue(confirm)) {
-            shellHelper.printInfo("Platform updating skipped");
-            shellHelper.println();
+            shellHelper.printInfo("Platform updating skipped\n");
             return;
         }
 
@@ -98,53 +91,21 @@ public class GameRetrieverCommands {
             boolean activeOnly
     ) throws AppException {
         List<Platform> platforms = gameGrabberService.getPlatforms(activeOnly);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("""
-                Format: [activation status] [platform id]. [platform name] ([short name])
-                Platform count: %s%n
-                """.formatted(platforms.size()));
-
-        for (Platform p : platforms) {
-            sb.append("%s %s %s".formatted(
-                    shellHelper.getCheckbox(p.getActive()),
-                    shellHelper.getColored(p.getId() + ".", AttributedStyle.BRIGHT),
-                    p.getName()
-            ));
-            if (isNotEmpty(p.getShortName())) {
-                sb.append(shellHelper.getColored(
-                        " (%s)".formatted(p.getShortName()),
-                        AttributedStyle.BRIGHT
-                ));
-            }
-
-            sb.append(System.lineSeparator());
-        }
-        shellHelper.println(sb.toString());
+        shellHelper.println(formatHelper.getPlatformList(platforms, activeOnly));
     }
 
     @ShellMethod(key = "games update", value = "Grab games from selected platforms into local DB")
     public void grabGames() throws AppException {
-        List<Platform> platforms;
-        try (Spinner spinner = shellHelper.spinner("Preparing platform list")) {
-            platforms = gameGrabberService.getPlatforms(false);
-        }
+        List<Platform> platforms = shellHelper.withSpinner("Preparing platform list",
+                () -> gameGrabberService.getPlatforms(false));
+
+        showPlatforms(true);
 
         List<Platform> chosenPlatforms = shellHelper.chooseMany("Select platforms to update games", platforms, Platform::getName, Platform::getActive);
-
-        try (Spinner spinner = shellHelper.spinner("Saving the selection")) {
-            gameGrabberService.setActivePlatforms(chosenPlatforms.stream()
-                    .map(Platform::getId)
-                    .collect(Collectors.toSet())
-            );
-        }
-
-        String activePlatforms = gameGrabberService.getPlatformsAsString(true);
-        if (StringUtils.isEmpty(activePlatforms)) {
-            shellHelper.printWarning("No platforms selected. Skipped");
-            shellHelper.println();
-            return;
-        }
+        shellHelper.withSpinner("Saving the selection",
+                () -> gameGrabberService.setActivePlatforms(chosenPlatforms.stream()
+                        .map(Platform::getId)
+                        .collect(Collectors.toSet())));
 
         try (Spinner spinner = shellHelper.spinner("Updating the games")) {
             gameGrabberService.grabGames(spinner::setMessage);
@@ -155,18 +116,22 @@ public class GameRetrieverCommands {
             return;
         }
 
-        shellHelper.printSuccess("Games updated for platforms: " + activePlatforms);
-        shellHelper.println();
+        List<Platform> activePlatforms = gameGrabberService.getPlatforms(true);
+        if (activePlatforms.isEmpty()) {
+            shellHelper.printWarning("No platforms selected\n");
+        } else {
+            shellHelper.printSuccess("Games updated for platforms: %s%n".formatted(
+                    formatHelper.getPlatformShortNames(activePlatforms)));
+        }
     }
 
     @ShellMethod(key = "output changelog", value = "Store all platforms and games as SQL insert file")
     public void generateChangelog() throws AppException {
         String changelogFile = liquibaseService.getChangelogFile();
-        try (Spinner spinner = shellHelper.spinner("Generating changelog file: " + changelogFile)) {
-            liquibaseService.generateDataChangelog();
-            spinner.success("DB changelog generated: " + changelogFile);
-        }
-        shellHelper.println();
+        shellHelper.withSpinner("Generating changelog file: " + changelogFile,
+                liquibaseService::generateDataChangelog,
+                "DB changelog generated: " + changelogFile);
+        shellHelper.println(formatHelper.getPlatformStats(gameGrabberService.getStats()));
     }
 
     @ShellMethod(key = "output convert", value = "Convert changelog SQL file into result file. Converters located in 'converters/'")
@@ -177,8 +142,13 @@ public class GameRetrieverCommands {
             return;
         }
 
+        converters.put("[don't convert]", null);
         String converterName = shellHelper.chooseOne("Select SQL converter (located in 'converters/')", converters.keySet());
         Converter converterCfg = converters.get(converterName);
+        if (converterCfg == null) {
+            shellHelper.printWarning("Conversion canceled\n");
+            return;
+        }
 
         try (Spinner spinner = shellHelper.spinner("Converting: '%s' -> '%s'"
                 .formatted(converterCfg.getInputFile(), converterCfg.getOutputFile()))) {

@@ -15,7 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import static liquibase.repackaged.org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 @Component
 @RequiredArgsConstructor
@@ -194,12 +197,27 @@ public class ShellHelper {
         return prompt(msg, null, true);
     }
 
+    public String promptIfEmpty(String value, String msg) {
+        return promptIfEmpty(value, msg, null, true);
+    }
+
     public String promptPassword(String msg) {
         return prompt(msg, null, false);
     }
 
-    public String prompt(String msg, String defaultValue) {
+    public String promptPasswordIfEmpty(String value, String msg) {
+        return promptIfEmpty(value, msg, null, false);
+    }
+
+    public String promptOrDefault(String msg, String defaultValue) {
         return prompt(msg, defaultValue, true);
+    }
+
+    public String promptIfEmpty(String value, String msg, String defaultValue, boolean echo) {
+        if (isNotEmpty(value)) {
+            return value;
+        }
+        return prompt(msg, defaultValue, echo);
     }
 
     public String prompt(String msg, String defaultValue, boolean echo) {
@@ -217,6 +235,33 @@ public class ShellHelper {
     }
 
     /* Spinner */
+
+    public <T> T withSpinner(String message, Supplier<T> func) {
+        try (Spinner ignored = spinner(message)) {
+            return func.get();
+        }
+    }
+
+    public void withSpinner(String message, Runnable func) {
+        try (Spinner ignored = spinner(message)) {
+            func.run();
+        }
+    }
+
+    public <T> T withSpinner(String message, Supplier<T> func, String successMsg) {
+        try (Spinner spinner = spinner(message)) {
+            T result = func.get();
+            spinner.success(successMsg);
+            return result;
+        }
+    }
+
+    public void withSpinner(String message, Runnable func, String successMsg) {
+        try (Spinner spinner = spinner(message)) {
+            func.run();
+            spinner.success(successMsg);
+        }
+    }
 
     public Spinner spinner(String message) {
         return Spinner.start(this, message);
