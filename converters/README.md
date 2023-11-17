@@ -85,8 +85,8 @@ Example template handler configuration:
   ```json
   {
   "$schema": "../schemas/converter.schema.json",
-  "inputFile": "data/changelog.h2.sql",
-  "outputFile": "data/rgg-assistant.h2.sql",
+  "inputFile": "result/changelog.h2.sql",
+  "outputFile": "result/rgg-assistant.h2.sql",
   "handlers": [
     {
       "type": "template",
