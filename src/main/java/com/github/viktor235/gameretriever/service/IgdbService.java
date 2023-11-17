@@ -54,7 +54,7 @@ public class IgdbService {
 
     public void getGames(long platformId, Consumer<List<Game>> handleBufferFunc) throws AppException {
         APICalypse query = new APICalypse()
-                .where("platforms=" + platformId)
+                .where("platforms=[%d]".formatted(platformId))
                 .fields("name, url");
         requestAndIterate(ProtoRequestKt::games, query, handleBufferFunc);
     }
@@ -62,7 +62,7 @@ public class IgdbService {
     @Deprecated
     public int getGameCount(long platformId) throws AppException {
         // IGDB-API-JVM has no '/games/count' endpoint, so I used ineffective hack
-        APICalypse query = new APICalypse().where("platforms=" + platformId);
+        APICalypse query = new APICalypse().where("platforms=[%d]".formatted(platformId));
         AtomicInteger count = new AtomicInteger();
         requestAndIterate(ProtoRequestKt::externalGames, query,
                 (buffer) -> count.addAndGet(buffer.size())
