@@ -10,4 +10,6 @@ import java.util.List;
 public interface PlatformRepository extends JpaRepository<Platform, Long> {
 
     List<Platform> findByActiveTrue();
+
+    long countByActiveTrue();
 }

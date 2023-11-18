@@ -1,6 +1,9 @@
 package com.github.viktor235.gameretriever.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
 import com.github.viktor235.gameretriever.exception.AppException;
 import com.github.viktor235.gameretriever.model.converter.Converter;
 import com.github.viktor235.gameretriever.model.converter.Handler;
@@ -14,6 +17,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -26,6 +32,7 @@ public class ConverterService {
 
     private final ObjectMapper objectMapper;
 
+    private final MustacheFactory mustacheFactory = new DefaultMustacheFactory();
     private Map<String, Converter> converters;
 
     private static final String CONVERTER_DIR = "converters";
@@ -98,14 +105,17 @@ public class ConverterService {
                 progressCallback.accept("(handler %d/%d) %s".formatted(
                         ++handlerIndex, converterCfg.getHandlers().size(), handler.getName()));
 
-                handle(inputFile, outputStream, handler);
+                switch (handler.getType()) {
+                    case REGEX_GENERATOR -> handleRegexGenerator(inputFile, outputStream, handler);
+                    case TEMPLATE -> handleTemplate(handler.getTemplate(), outputStream, handler);
+                }
             }
         } catch (IOException e) {
             throw new AppException("Error while converting '%s' -> '%s': %s".formatted(inputFile, outputFile, e.getMessage()), e);
         }
     }
 
-    private void handle(String inputFile, PrintWriter outputStream, Handler handler) throws IOException {
+    private void handleRegexGenerator(String inputFile, PrintWriter outputStream, Handler handler) throws IOException {
         if (handler.getPattern() == null || handler.getSubstitution() == null) {
             return;
         }
@@ -128,7 +138,6 @@ public class ConverterService {
                 String newLine = matcher.replaceAll(handler.getSubstitution());
                 outputStream.println(newLine);
             }
-            outputStream.println();
         }
     }
 
@@ -137,5 +146,15 @@ public class ConverterService {
             return true;
         }
         return filter.matcher(line).find();
+    }
+
+    private void handleTemplate(String template, PrintWriter outputStream, Handler handler) {
+        Mustache m = mustacheFactory.compile(new StringReader(template), handler.getName());
+        Map<String, Object> ctx = Map.of(
+                "timestamp", Timestamp.from(Instant.now()).getTime(),
+                "username", System.getProperty("user.name")
+        );
+        m.execute(outputStream, ctx);
+        outputStream.flush();
     }
 }

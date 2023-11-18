@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "game-retriever changelog converter",
   "type": "object",
   "properties": {
@@ -17,6 +17,14 @@
       "items": {
         "type": "object",
         "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "regex-generator",
+              "template"
+            ],
+            "description": "Handler type. Determine which handler should run (`regex-generator` or `template`)"
+          },
           "name": {
             "type": "string",
             "description": "Handler name. Uses to show progress while converting and to improve readability during converter config editing"
@@ -27,23 +35,29 @@
           },
           "pattern": {
             "type": "string",
-            "description": "Regex pattern to extract fields from input file line. Uses filtered input file lines and extracts regex groups for `substitution`. Useful to define named regex groups like `(?<id>\\d+)` and `(?<name>'.*?')`",
+            "description": "Regex pattern to extract fields from input file line. Required for `regex-generator` handler type. Uses filtered input file lines and extracts regex groups for `substitution`. Useful to define named regex groups like `(?<id>\\d+)` and `(?<name>'.*?')`",
             "examples": [
               "INSERT INTO GAME \\(ID, INFO_LINK, NAME\\) VALUES \\((?<id>\\d+), (?<infoLink>'.*?'), (?<name>'.*?')\\);"
             ]
           },
           "substitution": {
             "type": "string",
-            "description": "Regex substitution expression to generate result file line. `pattern` regex groups are available here. For example, ${id}, ${name}",
+            "description": "Regex substitution expression to generate result file line. Required for `regex-generator` handler type. `pattern` regex groups are available here. For example, ${id}, ${name}",
             "examples": [
               "MERGE INTO GAME (SOURCE_TYPE, SOURCE_ID, INFO_LINK, NAME) KEY (SOURCE_TYPE, SOURCE_ID) VALUES ('IGDB', '${id}', ${infoLink}, ${name});"
+            ]
+          },
+          "template": {
+            "type": "string",
+            "description": "Mustache template. Required for `template` handler type.",
+            "examples": [
+              "-- changeset {{username}}:{{timestamp}}-2\n"
             ]
           }
         },
         "required": [
-          "name",
-          "pattern",
-          "substitution"
+          "type",
+          "name"
         ]
       }
     }
@@ -56,21 +70,39 @@
   "examples": [
     {
       "$schema": "../schemas/converter.schema.json",
-      "inputFile": "data/changelog.h2.sql",
-      "outputFile": "data/rgg-assistant.h2.sql",
+      "inputFile": "result/changelog.h2.sql",
+      "outputFile": "result/rgg-assistant.h2.sql",
       "handlers": [
         {
-          "name": "platform",
+          "type": "template",
+          "name": "common changeset header",
+          "template": "-- liquibase formatted sql\n\n-- changeset {{username}}:{{timestamp}}-1\n"
+        },
+        {
+          "type": "regex-generator",
+          "name": "platform sql",
           "pattern": "INSERT INTO PLATFORM \\(ID, ACTIVE, NAME, SHORT_NAME\\) VALUES \\((?<id>\\d+), TRUE, (?<name>'.*?'), (?<shortName>'.*?')\\);",
           "substitution": "MERGE INTO PLATFORM (SOURCE_TYPE, SOURCE_ID, NAME, SHORT_NAME) KEY (SOURCE_TYPE, SOURCE_ID) VALUES ('IGDB', ${id}, ${name}, ${shortName});"
         },
         {
-          "name": "game",
+          "type": "template",
+          "name": "game changeset header",
+          "template": "\n-- changeset {{username}}:{{timestamp}}-2\n"
+        },
+        {
+          "type": "regex-generator",
+          "name": "game sql",
           "pattern": "INSERT INTO GAME \\(ID, INFO_LINK, NAME\\) VALUES \\((?<id>\\d+), (?<infoLink>'.*?'), (?<name>'.*?')\\);",
           "substitution": "MERGE INTO GAME (SOURCE_TYPE, SOURCE_ID, INFO_LINK, NAME) KEY (SOURCE_TYPE, SOURCE_ID) VALUES ('IGDB', '${id}', ${infoLink}, ${name});"
         },
         {
-          "name": "game_platform",
+          "type": "template",
+          "name": "game_platform changeset header",
+          "template": "\n-- changeset {{username}}:{{timestamp}}-3\n"
+        },
+        {
+          "type": "regex-generator",
+          "name": "game_platform sql",
           "pattern": "INSERT INTO GAME_PLATFORM \\(ID, GAME_ID, PLATFORM_ID\\) VALUES \\(\\d+, (?<gameId>.*?), (?<platformId>.*?)\\);",
           "substitution": "MERGE INTO GAME_PLATFORM (SOURCE_TYPE, GAME_ID, PLATFORM_ID) KEY (GAME_ID, PLATFORM_ID) VALUES ('IGDB', (SELECT ID FROM game WHERE SOURCE_TYPE='IGDB' AND SOURCE_ID='${gameId}'), (SELECT ID FROM platform WHERE SOURCE_TYPE='IGDB' AND SOURCE_ID='${platformId}'));"
         }
