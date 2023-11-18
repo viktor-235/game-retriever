@@ -50,7 +50,7 @@ public class GameRetrieverCommands {
         }
 
         clientId = shellHelper.promptIfEmpty(clientId, "Enter client-id:");
-        clientSecret = shellHelper.promptPasswordIfEmpty(clientId, "Enter client-secret:");
+        clientSecret = shellHelper.promptPasswordIfEmpty(clientSecret, "Enter client-secret:");
         if (clientId == null || clientSecret == null) {
             shellHelper.printWarning("Empty input. Authorizing canceled");
             return;
