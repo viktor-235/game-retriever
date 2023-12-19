@@ -95,11 +95,18 @@ public class GameRetrieverCommands {
     }
 
     @ShellMethod(key = "games update", value = "Grab games from selected platforms into local DB")
-    public void grabGames() throws AppException {
+    public void grabGames(
+            @ShellOption(value = {"delete-selection", "-d"}, defaultValue = "false", help = "Delete previously selected platforms")
+            boolean deletePlatformSelection
+    ) throws AppException {
         List<Platform> platforms = shellHelper.withSpinner("Preparing platform list",
                 () -> gameGrabberService.getPlatforms(false));
 
-        showPlatforms(true);
+        if (deletePlatformSelection) {
+            platforms.forEach(p -> p.setActive(false));
+        } else {
+            showPlatforms(true);
+        }
 
         List<Platform> chosenPlatforms = shellHelper.chooseMany("Select platforms to update games", platforms, Platform::getName, Platform::getActive);
         shellHelper.withSpinner("Saving the selection",
@@ -112,7 +119,7 @@ public class GameRetrieverCommands {
         } catch (AuthException e) {
             shellHelper.printWarning("Unauthorized. Logging in:");
             auth(null, null, false);
-            grabGames();
+            grabGames(deletePlatformSelection);
             return;
         }
 
@@ -135,19 +142,31 @@ public class GameRetrieverCommands {
     }
 
     @ShellMethod(key = "output convert", value = "Convert changelog SQL file into result file. Converters located in 'converters/'")
-    public void convertSql() throws AppException {
+    public void convertSql(
+            @ShellOption(value = {"converter", "-c"}, defaultValue = ShellOption.NULL)
+            String converterName
+    ) throws AppException {
         Map<String, Converter> converters = converterService.getConverters();
         if (isEmpty(converters)) {
             shellHelper.printWarning("No converters found in the folder 'converters/'. Converting skipped");
             return;
         }
 
-        converters.put("[don't convert]", null);
-        String converterName = shellHelper.chooseOne("Select SQL converter (located in 'converters/')", converters.keySet());
-        Converter converterCfg = converters.get(converterName);
-        if (converterCfg == null) {
-            shellHelper.printWarning("Conversion canceled\n");
-            return;
+        Converter converterCfg;
+        if (converterName == null) {
+            converters.put("[don't convert]", null);
+            converterName = shellHelper.chooseOne("Select SQL converter (located in 'converters/')", converters.keySet());
+            converterCfg = converters.get(converterName);
+            if (converterCfg == null) {
+                shellHelper.printWarning("Conversion canceled\n");
+                return;
+            }
+        } else {
+            converterCfg = converters.get(converterName);
+            if (converterCfg == null) {
+                shellHelper.printError("Converter '%s' not found\n".formatted(converterName));
+                return;
+            }
         }
 
         try (Spinner spinner = shellHelper.spinner("Converting: '%s' -> '%s'"
@@ -159,10 +178,19 @@ public class GameRetrieverCommands {
     }
 
     @ShellMethod(key = "wizard", value = "Start interactive wizard. This is the easiest way to interact with the application")
-    public void wizard() throws AppException {
-        grabPlatforms();
-        grabGames();
+    public void wizard(
+            @ShellOption(value = {"skip-platform-update", "-p"}, defaultValue = "false")
+            boolean skipPlatformUpdate,
+            @ShellOption(value = {"delete-selection", "-d"}, defaultValue = "false", help = "Delete previously selected platforms")
+            boolean deletePlatformSelection,
+            @ShellOption(value = {"converter", "-c"}, defaultValue = ShellOption.NULL)
+            String converter
+    ) throws AppException {
+        if (!skipPlatformUpdate) {
+            grabPlatforms();
+        }
+        grabGames(deletePlatformSelection);
         generateChangelog();
-        convertSql();
+        convertSql(converter);
     }
 }
