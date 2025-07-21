@@ -20,7 +20,7 @@ versatile and useful to someone else.
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/JnASQpxcqJrj4IEBuoniKAfB4.svg)](https://asciinema.org/a/JnASQpxcqJrj4IEBuoniKAfB4)
+[![asciicast](https://asciinema.org/a/602392.svg)](https://asciinema.org/a/602392)
 
 ## Usage
 
